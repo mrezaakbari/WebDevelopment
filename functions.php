@@ -77,22 +77,66 @@
             header("Location: $https_url");
         }
     }
-    function update_user_data($name, $last_name, $height, $weight, $blood_type, $birth_date) {
-        // Update user data in the $_SESSION variable
-        if($_SESSION['login']) {
+    function update_user_data($name, $last_name, $height, $weight, $blood_type, $birth_date, $phone_number) {
+        // Ensure that the session is started and the user is logged in
+        if (isset($_SESSION['login']) && $_SESSION['login'] === true) {
+            // Sanitize input data
+            $name = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+            $last_name = htmlspecialchars($last_name, ENT_QUOTES, 'UTF-8');
+            $height = filter_var($height, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+            $weight = filter_var($weight, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION);
+            $blood_type = htmlspecialchars($blood_type, ENT_QUOTES, 'UTF-8');
+            $birth_date = htmlspecialchars($birth_date, ENT_QUOTES, 'UTF-8');
+            $phone_number = htmlspecialchars($phone_number, ENT_QUOTES, 'UTF-8');
+    
+            // Update user data in the $_SESSION variable
             $_SESSION['name'] = $name;
             $_SESSION['last_name'] = $last_name;
             $_SESSION['height'] = $height;
             $_SESSION['weight'] = $weight;
             $_SESSION['blood_type'] = $blood_type;
             $_SESSION['birth_date'] = $birth_date;
-            // Update user data in the user database
-            $conn = new mysqli('localhost', 'username', 'password', 'database_name');
+    
+            // Use environment variables for database credentials
+            $db_host = getenv('DB_HOST');
+            $db_user = getenv('DB_USER');
+            $db_pass = getenv('DB_PASS');
+            $db_name = getenv('DB_NAME');
+    
+            // Create a secure connection to the database using MySQLi
+            $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+    
+            // Check for a connection error
+            if ($conn->connect_error) {
+                // Handle the error appropriately
+                error_log("Connection failed: " . $conn->connect_error);
+                exit("Database connection failed. Please try again later.");
+            }
+    
+            // Prepare the SQL statement to prevent SQL injection
             $stmt = $conn->prepare("UPDATE users SET name=?, last_name=?, height=?, weight=?, blood_type=?, birth_date=? WHERE phone_number=?");
-            $stmt->bind_param('ssssssi', $name, $last_name, $height, $weight, $blood_type, $birth_date);
-            $stmt->execute();
+            if ($stmt === false) {
+                // Handle the error appropriately
+                error_log("SQL preparation failed: " . $conn->error);
+                exit("Failed to prepare the SQL statement. Please try again later.");
+            }
+    
+            // Bind the parameters with correct types
+            $stmt->bind_param('ssssssi', $name, $last_name, $height, $weight, $blood_type, $birth_date, $phone_number);
+    
+            // Execute the statement and check for errors
+            if (!$stmt->execute()) {
+                // Handle the error appropriately
+                error_log("SQL execution failed: " . $stmt->error);
+                exit("Failed to update user data. Please try again later.");
+            }
+    
+            // Close the statement and the connection
             $stmt->close();
             $conn->close();
+        } else {
+            // Handle unauthorized access attempt
+            exit("Unauthorized access.");
         }
     }
     /**
