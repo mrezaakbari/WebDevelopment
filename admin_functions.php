@@ -1,4 +1,19 @@
 <?php
+    $GLOBALS['index_page']    = "Location: index.php";
+    $GLOBALS['visit_page']    = "Location: visit.php";
+    $GLOBALS['history_visit'] = "Location: history.php";
+    $GLOBALS['user_page']     = "Location: user.php";
+    $GLOBALS['payment_page']  = "Location: payment.php";
+    $GLOBALS['login_page']    = "Location: login.php";
+    $GLOBALS['error_page']    = "Location: error.php";
+    $GLOBALS['logout_page']   = "Location: logout.php";
+
+    define('DB_SERVER', 'localhost');
+    define('DB_USERNAME', 'root');
+    define('DB_PASSWORD', '');
+    define('DB_NAME', 'database');
+    define('TABLE_BASIC_DATA', 'basic_data');
+    define("MAX_FILE_SIZE", 500000);
     /**
      * Deletes a user from the database.
      *
@@ -125,7 +140,7 @@
             $stmt = $conn->prepare("UPDATE users SET password = ? WHERE phone_number = ?");
             $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
             $stmt->bind_param("ss", $hashed_password, $phone_number);
-            log_user_activity($user_id, 'Change Password', 'admin', 'Admin changed user password, User number:'.$phone_number);
+            log_user_activity($$_SESSION['admin_username'], 'Change Password', 'admin', "Admin changed user password, User number: $phone_number");
             // Execute the statement and check for errors
             if ($stmt->execute()) {
                 $stmt->close();
@@ -615,7 +630,7 @@
     }
 
     /**
-     * Sends a notification to users via email or other messaging platform.
+     * Sends a notification to users via phone_number or other messaging platform.
      *
      * @param array $user_ids An array of user IDs to send the notification to.
      * @param string $message The message to send.
@@ -626,20 +641,20 @@
 
         // Prepare the SQL statement to select the users by their IDs
         $placeholders = implode(',', array_fill(0, count($user_ids), '?'));
-        $stmt = $conn->prepare("SELECT email FROM users WHERE id IN ($placeholders)");
+        $stmt = $conn->prepare("SELECT phone_number FROM users WHERE id IN ($placeholders)");
         $stmt->bind_param(str_repeat('i', count($user_ids)), ...$user_ids);
         $stmt->execute();
 
-        // Fetch the emails
+        // Fetch the phone_numbers
         $result = $stmt->get_result();
-        $emails = [];
+        $phone_numbers = [];
         while ($row = $result->fetch_assoc()) {
-            $emails[] = $row['email'];
+            $phone_numbers[] = $row['phone_number'];
         }
 
-        // Send the notification to each email (this is a placeholder for the actual email sending logic)
-        foreach ($emails as $email) {
-            // mail($email, 'Notification', $message); // Uncomment this line to actually send the email
+        // Send the notification to each phone_number (this is a placeholder for the actual phone_number sending logic)
+        foreach ($phone_numbers as $phone_number) {
+            // mail($phone_number, 'Notification', $message); // Uncomment this line to actually send the phone_number
             // You can use a third-party service like PHPMailer, SendGrid, etc.
         }
 

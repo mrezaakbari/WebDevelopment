@@ -232,7 +232,7 @@
             $_SESSION['blood_type'] = filter_var($user['blood_type'], FILTER_SANITIZE_STRING);
             $_SESSION['birth_date'] = filter_var($user['birth_date'], FILTER_SANITIZE_STRING);
             $_SESSION['login'] = true;
-            log_user_activity($user_id, 'Login', 'User logged in from IP: ' . $_SERVER['REMOTE_ADDR']);
+            log_user_activity($_SESSION['phone_number'], 'Login', 'User logged in from IP: ' . $_SERVER['REMOTE_ADDR']);
             // Redirect to home page or dashboard using HTTPS
             $url = $GLOBALS['user_page'];
             $https_url = str_replace("http://", "https://", $url);
@@ -528,7 +528,7 @@
      * @param string|null $details Optional details about the action.
      * @return string A message indicating whether the log was inserted successfully or not.
      */
-    function log_user_activity($user_id, $action, $details = null) {
+    function log_user_activity($user_id = $_SESSION['phone_number'], $action, $details = null) {
         $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
 
         // Prepare the SQL statement to insert the log
@@ -567,7 +567,7 @@
         if (isset($_COOKIE[session_name()])) {
             setcookie(session_name(), '', time()-42000, '/', '', true, true);
         }
-        log_user_activity($user_id, 'Logout', 'User logged out.');
+        log_user_activity($_SESSION['phone_number'], 'Logout', 'User logged out.');
         // Destroy the session.
         session_destroy();
     }
