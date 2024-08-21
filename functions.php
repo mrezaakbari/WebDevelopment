@@ -140,6 +140,64 @@
         }
     }
     /**
+     * Allows a user to change their own password.
+     *
+     * @param int $user_id The ID of the user changing their password.
+     * @param string $old_password The user's current password.
+     * @param string $new_password The new password the user wants to set.
+     * @param string $confirm_password The confirmation of the new password.
+     * @return string A message indicating the result of the password change.
+     */
+    function change_user_password($user_id, $old_password, $new_password, $confirm_password) {
+        // Connect to the database
+        $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+
+        // Check for connection errors
+        if ($conn->connect_error) {
+            return "Connection failed: " . $conn->connect_error;
+        }
+
+        // Fetch the user's current password hash from the database
+        $stmt = $conn->prepare("SELECT password FROM users WHERE id = ?");
+        $stmt->bind_param('i', $user_id);
+        $stmt->execute();
+        $stmt->bind_result($stored_password_hash);
+        $stmt->fetch();
+        $stmt->close();
+
+        // Verify the old password matches the stored password hash
+        if (!password_verify($old_password, $stored_password_hash)) {
+            return "Old password is incorrect.";
+        }
+
+        // Check if the new password and confirm password match
+        if ($new_password !== $confirm_password) {
+            return "New password and confirmation password do not match.";
+        }
+
+        // Hash the new password
+        $new_password_hash = password_hash($new_password, PASSWORD_DEFAULT);
+
+        // Update the user's password in the database
+        $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->bind_param('si', $new_password_hash, $user_id);
+
+        // Check if the update was successful
+        if ($stmt->execute()) {
+            // Log the activity
+            log_user_activity($user_id, 'Change Password', 'user', 'User changed their own password.');
+            $message = "Password changed successfully.";
+        } else {
+            $message = "Error changing password: " . $stmt->error;
+        }
+
+        // Close the statement and connection
+        $stmt->close();
+        $conn->close();
+
+        return $message;
+    }
+    /**
     * Logs in a user with the given phone number and password.
     *
     * @param string $phone_number The user's phone number.
@@ -174,6 +232,7 @@
             $_SESSION['blood_type'] = filter_var($user['blood_type'], FILTER_SANITIZE_STRING);
             $_SESSION['birth_date'] = filter_var($user['birth_date'], FILTER_SANITIZE_STRING);
             $_SESSION['login'] = true;
+            log_user_activity($user_id, 'Login', 'User logged in from IP: ' . $_SERVER['REMOTE_ADDR']);
             // Redirect to home page or dashboard using HTTPS
             $url = $GLOBALS['user_page'];
             $https_url = str_replace("http://", "https://", $url);
@@ -460,6 +519,35 @@
         // Return the list of visits
         return $visits;
     }
+    
+    /**
+     * Logs a user's activity into the activity_logs table.
+     *
+     * @param int $user_id The ID of the user performing the action.
+     * @param string $action A short description of the action (e.g., 'Login', 'Update Profile').
+     * @param string|null $details Optional details about the action.
+     * @return string A message indicating whether the log was inserted successfully or not.
+     */
+    function log_user_activity($user_id, $action, $details = null) {
+        $conn = new mysqli(DB_SERVER, DB_USERNAME, DB_PASSWORD, DB_NAME);
+
+        // Prepare the SQL statement to insert the log
+        $stmt = $conn->prepare("INSERT INTO activity_logs (user_id, action, details) VALUES (?, ?, ?)");
+        $stmt->bind_param('iss', $user_id, $action, $details);
+
+        // Execute the statement and check if it was successful
+        if ($stmt->execute()) {
+            $message = "User activity logged successfully.";
+        } else {
+            $message = "Error logging user activity: " . $stmt->error;
+        }
+
+        // Close the statement and connection
+        $stmt->close();
+        $conn->close();
+
+        return $message;
+    }
     /**
      * Logout function to terminate user session and destroy session data
      *
@@ -479,6 +567,7 @@
         if (isset($_COOKIE[session_name()])) {
             setcookie(session_name(), '', time()-42000, '/', '', true, true);
         }
+        log_user_activity($user_id, 'Logout', 'User logged out.');
         // Destroy the session.
         session_destroy();
     }
